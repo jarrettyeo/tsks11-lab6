@@ -1,5 +1,8 @@
 import numpy as np
+from matplotlib import pyplot as plt 
+
 from math import sqrt
+
 from yaspin import yaspin
 import pickle
 
@@ -107,8 +110,8 @@ if rerun_bias == 'y':
     A = np.zeros((training_size, max_user + max_movie)) # M x N matrix
     r = np.zeros(training_size) # 1 x N vector with r
     i = 0
-    for row in training_indices:
     
+    for row in training_indices:
     # for row in training_matrix:
         A[i, int(row[0])] = 1
         A[i, int(row[1]) + max_user] = 1
@@ -147,17 +150,20 @@ else:
 #     return r_baseline
 
 training_matrix_predicted = np.zeros((max_user, max_movie))
-for u_index in range(max_user):
-    for m_index in range(max_movie):
-        r_um_predicted = r_avg + bias[u_index] + bias[m_index + max_user]
-        # crop values
-        # if self.mode == Mode.BASELINE: # TODO - MIGHT BE IMPORTANT
-        if r_um_predicted < 1.0:
-            r_um_predicted = 1.0
-        if r_um_predicted > 5.0:
-            r_um_predicted = 5.0
-        training_matrix_predicted[u_index, m_index] = r_um_predicted
-
+# for u_index in range(max_user):
+#     for m_index in range(max_movie):
+#         r_um_predicted = r_avg + bias[u_index] + bias[m_index + max_user]
+#         # crop values
+#         # if self.mode == Mode.BASELINE: # TODO - MIGHT BE IMPORTANT
+#         # if r_um_predicted < 1.0:
+#         #     r_um_predicted = 1.0
+#         # if r_um_predicted > 5.0:
+#         #     r_um_predicted = 5.0
+#         training_matrix_predicted[u_index, m_index] = r_um_predicted
+for (u_index,m_index), _ in np.ndenumerate(training_matrix_predicted):
+    r_um_predicted = r_avg + bias[u_index] + bias[m_index + max_user]
+    training_matrix_predicted[u_index, m_index] = r_um_predicted
+training_matrix_predicted = np.clip(training_matrix_predicted, 1, 5)
 # baseline_matrix is really the predicted matrix for training_matrix
 
 print("\n")
@@ -215,7 +221,7 @@ for u_index, m_index in zip(u_indexes, m_indexes):
     r_um = training_matrix[u_index, m_index]
     rmse_training += (r_um - r_um_predicted) ** 2
 rmse_training = sqrt(rmse_training / training_size)
-rmse_training = np.around(rmse_training, decimals=3)
+rmse_training = round(rmse_training,3)
 print(f"{rmse_training=}")
 # =================================================================================
 
@@ -232,14 +238,49 @@ print(f"{rmse_training=}")
 
 # =================================================================================
 rmse_test = 0
+histogram_data = []
 u_indexes, m_indexes = np.nonzero(test_matrix)
 for u_index, m_index in zip(u_indexes, m_indexes):
     r_um_predicted = training_matrix_predicted[u_index, m_index]
     r_um = test_matrix[u_index, m_index]
+    abs_error = abs(r_um - int(r_um_predicted))
+    histogram_data.append(abs_error)
     rmse_test += (r_um - r_um_predicted) ** 2
 rmse_test = sqrt(rmse_test / test_size)
-rmse_test = np.around(rmse_test, decimals=3)
+rmse_test = round(rmse_test,3)
 print(f"{rmse_test=}")
 # =================================================================================
 
 # ---
+# def calculate_absolute_errors(self, test_set, source):
+#     filename = "abs_errors_" + self.mode.value + ".png"
+#     # plot a histogram
+#     hist_data = [
+#         (abs(test_set[i][2] - source[test_set[i][0] - 1, test_set[i][1] - 1]))
+#         for i in range(len(test_set))
+#     ]
+#     hist, bins = np.histogram(hist_data, bins=range(10))
+#     center = (bins[:-1] + bins[1:]) / 2
+#     plt.bar(center, hist, align="center", width=0.7)
+#     plt.xlabel("Absolute error")
+#     plt.ylabel("Count")
+#     plt.title(
+#         "Histogram of the distribution of the absolute errors for "
+#         + self.mode.value
+#         + " predictor\n"
+#     )
+#     plt.grid(True)
+#     plt.savefig(filename)
+#     return [x for x in hist if x > 0]
+
+filename = "abs_errors_baseline.png"
+hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
+plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
+plt.title("Baseline Absolute Errors")
+plt.xlabel("Absolute error")
+plt.ylabel("Count")
+plt.savefig("baseline_abs_error.png")
+error_dist = [x for x in hist if x > 0]
+print(f"{error_dist=}")
+
+#  ---
