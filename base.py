@@ -23,7 +23,7 @@ def generate_matrix(filename):
 
     A = np.zeros((max_user, max_movie))
     for u, m, r in zip(users, movies, ratings):
-        A[int(u)-1, int(m)-1] = int(r)-1
+        A[int(u)-1, int(m)-1] = int(r) # -1
     
     return A, len(ratings), max_user, max_movie
 
@@ -273,7 +273,6 @@ print(f"{rmse_test=}")
 #     plt.savefig(filename)
 #     return [x for x in hist if x > 0]
 
-filename = "abs_errors_baseline.png"
 hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
 plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
 plt.title("Baseline Absolute Errors")
