@@ -180,101 +180,23 @@ if run_improved == 'y' and validate == '2':
     PROPORTION_OF_PREDICT_VS_SIM_LIST = [(1,0.5)]
 
     # fill with special values
-    NONE = np.nan
-    difference_matrix = np.full((max_user, max_user), NONE)
-    # calculate the difference for each cell
-    for user in range(max_user):
-        for movie in range(max_movie):
-            # if user rated the movie, calculate the difference between actual and predicted grade
-            if training_matrix[user, movie] != 0.0:
-                difference_matrix[user, movie] = (
-                    training_matrix[user, movie] - training_matrix_predicted[user, movie]
-                )
-
-    #  ---
-
-    # self.distance_matrix = self.calculate_distance_matrix()
-
-    # def calculate_distance_matrix(self):
-    #     # fill with zeroes
-    #     distance_matrix = np.zeros((self.movies, self.movies))
-    #     for movie in range(self.movies):
-    #         distance_matrix[movie, movie] = 0.0
-    #         # iterate over top triangle of the matrix
-    #         for candidate in range(movie + 1, self.movies):
-    #             movie_a = []
-    #             movie_b = []
-    #             for user in range(self.users):
-    #                 # append movies if user rated both of them
-    #                 if (
-    #                     self.difference_matrix[user, movie] != NONE
-    #                     and self.difference_matrix[user, candidate] != NONE
-    #                 ):
-    #                     movie_a.append(self.difference_matrix[user, movie])
-    #                     movie_b.append(self.difference_matrix[user, candidate])
-    #             # calculate cosine coefficient distance or 0
-    #             distance_matrix[movie, candidate] = (
-    #                 1.0 - distance.cosine(movie_a, movie_b)
-    #                 if len(movie_a) * len(movie_b) > 0
-    #                 else 0.0
-    #             )
-    #             # get bottom triangle by symmetry
-    #             distance_matrix[candidate, movie] = distance_matrix[movie, candidate]
-    #     return distance_matrix
+    difference_matrix = np.full((max_user, max_user), np.nan)
+    u_indexes, m_indexes = np.nonzero(training_matrix) # if rating exists
+    for u_index, m_index in zip(u_indexes, m_indexes):
+        difference_matrix[u_index, m_index] = training_matrix[u_index, m_index] - training_matrix_predicted[u_index, m_index]
 
     if rerun_distance_matrix == 'y':
         distance_matrix = np.zeros((max_movie, max_movie))
-        for movie in range(max_movie):
-            print('Creating distance_matrix for {movie}/{max_movie}...'.format(
-                movie=movie+1, max_movie=max_movie
+        for m1 in range(max_movie):
+            print('Creating distance_matrix for {m1}/{max_movie}...'.format(
+                m1=m1+1, max_movie=max_movie
             ))
-            distance_matrix[movie, movie] = 0.0
-            # iterate over top triangle of the matrix
-            for candidate in range(movie + 1, max_movie):
-                movie_a = []
-                movie_b = []
-                for user in range(max_user):
-                    # append movies if user rated both of them
-                    if (
-                        difference_matrix[user, movie] != NONE
-                        and difference_matrix[user, candidate] != NONE
-                    ):
-                        movie_a.append(difference_matrix[user, movie])
-                        movie_b.append(difference_matrix[user, candidate])
-                # calculate cosine coefficient distance or 0
-                distance_matrix[movie, candidate] = (
-                    # 1.0 - distance.cosine(movie_a, movie_b)
-                    distance.cosine(movie_a, movie_b)
-                    if len(movie_a) > U_MIN
-                    else 0.0
-                )
-                # get bottom triangle by symmetry
-                distance_matrix[candidate, movie] = distance_matrix[movie, candidate]
+            for m2 in range(m1+1, max_movie):
+                movie_a, movie_b = zip(*[(difference_matrix[u_index, m1], difference_matrix[u_index, m2]) for u_index in range(max_user) if not np.nan(difference_matrix[u_index, m1]) and not np.nan(difference_matrix[u_index, m2]) ])
+                distance_matrix[m1, m2] = distance_matrix[m2, m1] = distance.cosine(movie_a, movie_b) if len(movie_a) > U_MIN else 0.0
         pickle.dump(distance_matrix, open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "wb"))
     else:
         distance_matrix = pickle.load(open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
-
-    #  ---
-
-    # self.improved_matrix = self.get_improved_matrix(training_data)
-
-    # def get_improved_matrix(self, training_data):
-    #     improved_matrix = np.zeros((self.users, self.movies))
-    #     sim = 0.0
-    #     for movie in range(self.movies):
-    #         # choose 2 closest neighbours, based on distance matrix
-    #         neighbours = self.find_best_neighbours(movie, NEIGHBOURS_NUMBER)
-    #         for user in range(self.users):
-    #             similarity = self.get_similarity(training_data, user, movie, neighbours)
-    #             temp_val = self.baseline_matrix[user, movie] + similarity / 10.0
-    #             sim += similarity
-    #             # crop values
-    #             if temp_val < 1.0:
-    #                 temp_val = 1.0
-    #             elif temp_val > 5.0:
-    #                 temp_val = 5.0
-    #             improved_matrix[user, movie] = temp_val
-    #     return improved_matrix
 
     def find_best_neighbours(movie, n):
         # returns indices of 2 closes neighbours
@@ -296,14 +218,12 @@ if run_improved == 'y' and validate == '2':
             return np.nan
         else:
             return 0.0
-            # return np.nan # TODO potential
 
     def trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM):
-        # NEIGHBOURS_NUMBER = 10
-        # SIM_DENOM = 1 # 10.0
-        # improved_matrix = np.zeros((max_user, max_movie))
-        improved_matrix = np.full([max_user, max_movie], np.nan) # TODO
+        improved_matrix = np.full([max_user, max_movie], np.nan)
         sim_data = []
+        
+        print('\n')
         for movie in range(max_movie):
             
             print('Finding similarity for {movie}/{max_movie}...'.format(
@@ -345,6 +265,8 @@ if run_improved == 'y' and validate == '2':
         rmse_test_improved = sqrt(rmse_test_improved / test_size)
         rmse_test_improved = round(rmse_test_improved,3)
         print(f"{rmse_test_improved=}")
+
+        assert rmse_test_improved == 0.903
 
         #  ---
 
