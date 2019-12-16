@@ -159,15 +159,18 @@ if validate == 'y':
 
 hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
 plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
-plt.title("Baseline Absolute Errors")
 plt.xlabel("Absolute error")
 plt.ylabel("Count")
 if validate == 'y':
+    plt.title("Baseline Validate Absolute Errors")
     plt.savefig("BASE-validate.png")
 elif validate == '2':
+    plt.title("Baseline Task 2 Absolute Errors")
     plt.savefig("BASE-task2.png")    
 else:
+    plt.title("Baseline jarye Absolute Errors")
     plt.savefig("BASE-jarye.png")
+plt.close()
 error_dist = [x for x in hist if x > 0]
 print(f"{error_dist=}")
 
@@ -176,10 +179,9 @@ print(f"{error_dist=}")
 if run_improved == 'y' and validate == '2':
 
     U_MIN = 100
-    NEIGHBOURS_NUMBER_LIST = [100] # min 1000
+    NEIGHBOURS_NUMBER_LIST = [100]
     PROPORTION_OF_PREDICT_VS_SIM_LIST = [(1,0.5)]
 
-    # fill with special values
     difference_matrix = np.full((max_user, max_user), np.nan)
     u_indexes, m_indexes = np.nonzero(training_matrix) # if rating exists
     for u_index, m_index in zip(u_indexes, m_indexes):
@@ -198,23 +200,6 @@ if run_improved == 'y' and validate == '2':
     else:
         distance_matrix = pickle.load(open("IMPROVED-task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
 
-    def get_similarity(training_data, user, movie, neighbours):
-        sim_denominator = 0.0
-        sim_numerator = 0.0
-        for neighbour in neighbours:
-            if training_data[user, neighbour] != 0:
-                sim_numerator += (
-                    distance_matrix[movie, neighbour]
-                    * difference_matrix[user, neighbour]
-                )
-                sim_denominator += abs(distance_matrix[movie, neighbour])
-        if sim_denominator != 0:
-            return sim_numerator * 1.0 / sim_denominator
-        elif user < U_MIN * sum(PROPORTION_OF_PREDICT_VS_SIM_LIST[0]):
-            return np.nan
-        else:
-            return 0.0
-
     def trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM):
         improved_matrix = np.full([max_user, max_movie], np.nan)
         print('\n')
@@ -224,9 +209,19 @@ if run_improved == 'y' and validate == '2':
             ))
             neighbours = np.argsort([abs(x) for x in distance_matrix[m_index]])[::-1][:NEIGHBOURS_NUMBER]
             for u_index in range(max_user):
-                similarity = get_similarity(training_matrix, u_index, m_index, neighbours)
-                temp_val = training_matrix_predicted[u_index, m_index] + similarity
-                improved_matrix[u_index, m_index] = temp_val if u_index > U_MIN else np.nan # TODO
+
+                neighbourhood_denominator = sum([abs(distance_matrix[m_index, neighbour]) for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
+
+                if not neighbourhood_denominator == 0:
+                    neighbourhood_numberator = sum([distance_matrix[m_index, neighbour] * difference_matrix[u_index, neighbour] for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
+                    similarity_score = neighbourhood_numberator / neighbourhood_denominator
+                elif u_index < U_MIN * sum(PROPORTION_OF_PREDICT_VS_SIM_LIST[0]):
+                    similarity_score = np.nan
+                else:
+                    similarity_score = 0.0
+
+                improved_matrix[u_index, m_index] = training_matrix_predicted[u_index, m_index] + similarity_score if u_index > U_MIN else np.nan
+
         improved_matrix = np.clip(improved_matrix, 1, 5)
 
         rmse_test_improved = 0
@@ -247,10 +242,10 @@ if run_improved == 'y' and validate == '2':
         hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
         plt.figure(1)
         plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
-        plt.title("Baseline Absolute Errors")
-        plt.xlabel("Absolute error")
+        plt.title("Improved Task 2 Absolute Errors")
+        plt.xlabel("Absolute Error")
         plt.ylabel("Count")
-        plt.savefig("IMPROVED-task2.png")
+        # plt.savefig("IMPROVED-task2.png")
         plt.close()
         error_dist_improved = [x for x in hist if x > 0]
         print(f"{error_dist_improved=}")    
