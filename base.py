@@ -1,4 +1,11 @@
-# 2, n
+# validate
+## y, n
+# jarye
+## n, n
+# task2
+## 2, n, y
+# task2 (improved)
+## 2, n, y, n
 
 import numpy as np
 from matplotlib import pyplot as plt 
@@ -7,6 +14,7 @@ from math import sqrt
 
 from yaspin import yaspin
 import pickle
+import itertools
 
 # BASE
 ## validate
@@ -24,6 +32,13 @@ assert validate in ['y','n','2']
 
 rerun_bias = input("Rerun bias? (y/n) ") or 'n'
 assert rerun_bias in ['y','n']
+
+if validate == '2':
+    run_improved = input("Run improved? (y/n) ") or 'n'
+    assert run_improved in ['y','n']
+
+    rerun_distance_matrix = input("Rerun distance_matrix? (y/n) ") or 'n'
+    assert rerun_distance_matrix in ['y','n']
 
 if validate == 'y':
     training_filename = "validate_code_netflix/validate_code.training"
@@ -155,3 +170,203 @@ else:
     plt.savefig("BASE-jarye.png")
 error_dist = [x for x in hist if x > 0]
 print(f"{error_dist=}")
+
+# =========================================================================
+
+if run_improved == 'y' and validate == '2':
+
+    U_MIN = 100
+    NEIGHBOURS_NUMBER_LIST = [100] # min 1000
+    PROPORTION_OF_PREDICT_VS_SIM_LIST = [(1,0.5)]
+
+    # fill with special values
+    NONE = np.nan
+    difference_matrix = np.full((max_user, max_user), NONE)
+    # calculate the difference for each cell
+    for user in range(max_user):
+        for movie in range(max_movie):
+            # if user rated the movie, calculate the difference between actual and predicted grade
+            if training_matrix[user, movie] != 0.0:
+                difference_matrix[user, movie] = (
+                    training_matrix[user, movie] - training_matrix_predicted[user, movie]
+                )
+
+    #  ---
+
+    # self.distance_matrix = self.calculate_distance_matrix()
+
+    # def calculate_distance_matrix(self):
+    #     # fill with zeroes
+    #     distance_matrix = np.zeros((self.movies, self.movies))
+    #     for movie in range(self.movies):
+    #         distance_matrix[movie, movie] = 0.0
+    #         # iterate over top triangle of the matrix
+    #         for candidate in range(movie + 1, self.movies):
+    #             movie_a = []
+    #             movie_b = []
+    #             for user in range(self.users):
+    #                 # append movies if user rated both of them
+    #                 if (
+    #                     self.difference_matrix[user, movie] != NONE
+    #                     and self.difference_matrix[user, candidate] != NONE
+    #                 ):
+    #                     movie_a.append(self.difference_matrix[user, movie])
+    #                     movie_b.append(self.difference_matrix[user, candidate])
+    #             # calculate cosine coefficient distance or 0
+    #             distance_matrix[movie, candidate] = (
+    #                 1.0 - distance.cosine(movie_a, movie_b)
+    #                 if len(movie_a) * len(movie_b) > 0
+    #                 else 0.0
+    #             )
+    #             # get bottom triangle by symmetry
+    #             distance_matrix[candidate, movie] = distance_matrix[movie, candidate]
+    #     return distance_matrix
+
+    if rerun_distance_matrix == 'y':
+        distance_matrix = np.zeros((max_movie, max_movie))
+        for movie in range(max_movie):
+            print('Creating distance_matrix for {movie}/{max_movie}...'.format(
+                movie=movie+1, max_movie=max_movie
+            ))
+            distance_matrix[movie, movie] = 0.0
+            # iterate over top triangle of the matrix
+            for candidate in range(movie + 1, max_movie):
+                movie_a = []
+                movie_b = []
+                for user in range(max_user):
+                    # append movies if user rated both of them
+                    if (
+                        difference_matrix[user, movie] != NONE
+                        and difference_matrix[user, candidate] != NONE
+                    ):
+                        movie_a.append(difference_matrix[user, movie])
+                        movie_b.append(difference_matrix[user, candidate])
+                # calculate cosine coefficient distance or 0
+                distance_matrix[movie, candidate] = (
+                    # 1.0 - distance.cosine(movie_a, movie_b)
+                    distance.cosine(movie_a, movie_b)
+                    if len(movie_a) > U_MIN
+                    else 0.0
+                )
+                # get bottom triangle by symmetry
+                distance_matrix[candidate, movie] = distance_matrix[movie, candidate]
+        pickle.dump(distance_matrix, open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "wb"))
+    else:
+        distance_matrix = pickle.load(open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
+
+    #  ---
+
+    # self.improved_matrix = self.get_improved_matrix(training_data)
+
+    # def get_improved_matrix(self, training_data):
+    #     improved_matrix = np.zeros((self.users, self.movies))
+    #     sim = 0.0
+    #     for movie in range(self.movies):
+    #         # choose 2 closest neighbours, based on distance matrix
+    #         neighbours = self.find_best_neighbours(movie, NEIGHBOURS_NUMBER)
+    #         for user in range(self.users):
+    #             similarity = self.get_similarity(training_data, user, movie, neighbours)
+    #             temp_val = self.baseline_matrix[user, movie] + similarity / 10.0
+    #             sim += similarity
+    #             # crop values
+    #             if temp_val < 1.0:
+    #                 temp_val = 1.0
+    #             elif temp_val > 5.0:
+    #                 temp_val = 5.0
+    #             improved_matrix[user, movie] = temp_val
+    #     return improved_matrix
+
+    def find_best_neighbours(movie, n):
+        # returns indices of 2 closes neighbours
+        return np.argsort([abs(x) for x in distance_matrix[movie]])[::-1][:n]
+
+    def get_similarity(training_data, user, movie, neighbours):
+        sim_denominator = 0.0
+        sim_numerator = 0.0
+        for neighbour in neighbours:
+            if training_data[user, neighbour] != 0:
+                sim_numerator += (
+                    distance_matrix[movie, neighbour]
+                    * difference_matrix[user, neighbour]
+                )
+                sim_denominator += abs(distance_matrix[movie, neighbour])
+        if sim_denominator != 0:
+            return sim_numerator * 1.0 / sim_denominator
+        elif user < U_MIN * sum(PROPORTION_OF_PREDICT_VS_SIM_LIST[0]):
+            return np.nan
+        else:
+            return 0.0
+            # return np.nan # TODO potential
+
+    def trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM):
+        # NEIGHBOURS_NUMBER = 10
+        # SIM_DENOM = 1 # 10.0
+        # improved_matrix = np.zeros((max_user, max_movie))
+        improved_matrix = np.full([max_user, max_movie], np.nan) # TODO
+        sim_data = []
+        for movie in range(max_movie):
+            
+            print('Finding similarity for {movie}/{max_movie}...'.format(
+                movie=movie+1, max_movie=max_movie
+            ))
+            # sim = 0.0
+            # choose 2 closest neighbours, based on distance matrix
+            neighbours = find_best_neighbours(movie, NEIGHBOURS_NUMBER)
+            for user in range(max_user):
+                similarity = get_similarity(training_matrix, user, movie, neighbours)
+                # temp_val = training_matrix_predicted[user, movie] + similarity / 10.0
+                # temp_val = PROPORTION_OF_PREDICT * training_matrix_predicted[user, movie] + PROPORTION_OF_SIM * similarity
+                temp_val = training_matrix_predicted[user, movie] + similarity
+                # sim += similarity
+                # crop values
+                if temp_val < 1.0:
+                    temp_val = 1.0
+                elif temp_val > 5.0:
+                    temp_val = 5.0
+                sim_data.append(similarity)
+                improved_matrix[user, movie] = temp_val if user > U_MIN else np.nan # TODO
+
+        #  ---
+
+        # self.rmse_test_improved = self.get_rmse_test(test_data, self.improved_matrix)
+
+        rmse_test_improved = 0
+        histogram_data = []
+        # u_indexes, m_indexes = np.nonzero(test_matrix)
+        u_indexes, m_indexes = range(max_user), range(max_movie) # TODO potential - loop through full array, not just nonzero
+        for u_index, m_index in zip(u_indexes, m_indexes):
+            r_um_predicted = improved_matrix[u_index, m_index]
+            r_um = test_matrix[u_index, m_index]
+            # abs_error = abs(r_um - int(r_um_predicted)) * PROPORTION_OF_PREDICT if not np.isnan(r_um_predicted) else 0
+            # abs_error = abs(r_um - r_um_predicted) if not np.isnan(r_um_predicted) else 0 # TODO
+            abs_error = abs(r_um - r_um_predicted) if not np.isnan(r_um_predicted) else 0 # TODO
+            histogram_data.append(abs_error)
+            rmse_test_improved += abs_error ** 2 if not np.isnan(r_um_predicted) else 0 # TODO
+        rmse_test_improved = sqrt(rmse_test_improved / test_size)
+        rmse_test_improved = round(rmse_test_improved,3)
+        print(f"{rmse_test_improved=}")
+
+        #  ---
+
+        # plt.figure(1)
+        # _ = plt.hist(sim_data, bins=100)
+        # plt.show()
+        # # plt.close()
+
+        # ---
+        hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
+        plt.figure(1)
+        plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
+        plt.title("Baseline Absolute Errors")
+        plt.xlabel("Absolute error")
+        plt.ylabel("Count")
+        plt.savefig("task2-improved_abs_error.png")
+        plt.close()
+        error_dist_improved = [x for x in hist if x > 0]
+        print(f"{error_dist_improved=}")    
+
+    # for a,b in itertools.product(a, b):
+    for NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT_VS_SIM in itertools.product(NEIGHBOURS_NUMBER_LIST, PROPORTION_OF_PREDICT_VS_SIM_LIST):
+        PROPORTION_OF_PREDICT, PROPORTION_OF_SIM = PROPORTION_OF_PREDICT_VS_SIM
+        print(f"{U_MIN=}; {NEIGHBOURS_NUMBER=}; {PROPORTION_OF_PREDICT_VS_SIM=}; ", end="")
+        trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM)
