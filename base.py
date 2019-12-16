@@ -6,11 +6,18 @@ from math import sqrt
 from yaspin import yaspin
 import pickle
 
-rerun_bias = input("Rerun bias? (y/n) ")
+validate = input("Validate? (y/n) ") or 'n'
+assert validate in ['y','n']
+
+rerun_bias = input("Rerun bias? (y/n) ") or 'n'
 assert rerun_bias in ['y','n']
 
-training_filename = "training/jarettye.training"
-test_filename = "test/jarettye.test"
+if validate == 'y':
+    training_filename = "validate_code_netflix/validate_code.test"
+    test_filename = "validate_code_netflix/validate_code.training"
+else:
+    training_filename = "training/jarettye.training"
+    test_filename = "test/jarettye.test"
 # training_proportion = 0.9
 
 def generate_matrix(filename):
@@ -125,10 +132,16 @@ if rerun_bias == 'y':
     with yaspin(text = "Running least-squares solution to linear matrix equation...").white.bold.shark.on_blue as sp:
         bias, _, _, _ = np.linalg.lstsq(A, r, rcond=1.e-3)
         print(f"\n{bias=}")
-        pickle.dump(bias, open( "bias.p", "wb"))
+        if validate:
+            pickle.dump(bias, open("validate-bias.p", "wb"))
+        else:
+            pickle.dump(bias, open("bias.p", "wb"))
 
 else:
-    bias = pickle.load(open("bias.p", "rb"))
+    if validate:
+        bias = pickle.load(open("validate-bias.p", "rb"))
+    else:
+        bias = pickle.load(open("bias.p", "rb"))
 
 # ---
 
@@ -278,7 +291,7 @@ plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
 plt.title("Baseline Absolute Errors")
 plt.xlabel("Absolute error")
 plt.ylabel("Count")
-plt.savefig("baseline_abs_error.png")
+plt.savefig("validate-baseline_abs_error.png")
 error_dist = [x for x in hist if x > 0]
 print(f"{error_dist=}")
 
