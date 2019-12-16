@@ -13,8 +13,8 @@ rerun_bias = input("Rerun bias? (y/n) ") or 'n'
 assert rerun_bias in ['y','n']
 
 if validate == 'y':
-    training_filename = "validate_code_netflix/validate_code.test"
-    test_filename = "validate_code_netflix/validate_code.training"
+    training_filename = "validate_code_netflix/validate_code.training"
+    test_filename = "validate_code_netflix/validate_code.test"
 else:
     training_filename = "training/jarettye.training"
     test_filename = "test/jarettye.test"
