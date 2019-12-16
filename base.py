@@ -194,13 +194,9 @@ if run_improved == 'y' and validate == '2':
             for m2 in range(m1+1, max_movie):
                 movie_a, movie_b = zip(*[(difference_matrix[u_index, m1], difference_matrix[u_index, m2]) for u_index in range(max_user) if not np.nan(difference_matrix[u_index, m1]) and not np.nan(difference_matrix[u_index, m2]) ])
                 distance_matrix[m1, m2] = distance_matrix[m2, m1] = distance.cosine(movie_a, movie_b) if len(movie_a) > U_MIN else 0.0
-        pickle.dump(distance_matrix, open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "wb"))
+        pickle.dump(distance_matrix, open("IMPROVED-task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "wb"))
     else:
-        distance_matrix = pickle.load(open("task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
-
-    def find_best_neighbours(movie, n):
-        # returns indices of 2 closes neighbours
-        return np.argsort([abs(x) for x in distance_matrix[movie]])[::-1][:n]
+        distance_matrix = pickle.load(open("IMPROVED-task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
 
     def get_similarity(training_data, user, movie, neighbours):
         sim_denominator = 0.0
@@ -221,44 +217,24 @@ if run_improved == 'y' and validate == '2':
 
     def trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM):
         improved_matrix = np.full([max_user, max_movie], np.nan)
-        sim_data = []
-        
         print('\n')
-        for movie in range(max_movie):
-            
-            print('Finding similarity for {movie}/{max_movie}...'.format(
-                movie=movie+1, max_movie=max_movie
+        for m_index in range(max_movie):
+            print('Finding similarity for {m_index}/{max_movie}...'.format(
+                m_index=m_index+1, max_movie=max_movie
             ))
-            # sim = 0.0
-            # choose 2 closest neighbours, based on distance matrix
-            neighbours = find_best_neighbours(movie, NEIGHBOURS_NUMBER)
-            for user in range(max_user):
-                similarity = get_similarity(training_matrix, user, movie, neighbours)
-                # temp_val = training_matrix_predicted[user, movie] + similarity / 10.0
-                # temp_val = PROPORTION_OF_PREDICT * training_matrix_predicted[user, movie] + PROPORTION_OF_SIM * similarity
-                temp_val = training_matrix_predicted[user, movie] + similarity
-                # sim += similarity
-                # crop values
-                if temp_val < 1.0:
-                    temp_val = 1.0
-                elif temp_val > 5.0:
-                    temp_val = 5.0
-                sim_data.append(similarity)
-                improved_matrix[user, movie] = temp_val if user > U_MIN else np.nan # TODO
-
-        #  ---
-
-        # self.rmse_test_improved = self.get_rmse_test(test_data, self.improved_matrix)
+            neighbours = np.argsort([abs(x) for x in distance_matrix[m_index]])[::-1][:NEIGHBOURS_NUMBER]
+            for u_index in range(max_user):
+                similarity = get_similarity(training_matrix, u_index, m_index, neighbours)
+                temp_val = training_matrix_predicted[u_index, m_index] + similarity
+                improved_matrix[u_index, m_index] = temp_val if u_index > U_MIN else np.nan # TODO
+        improved_matrix = np.clip(improved_matrix, 1, 5)
 
         rmse_test_improved = 0
         histogram_data = []
-        # u_indexes, m_indexes = np.nonzero(test_matrix)
-        u_indexes, m_indexes = range(max_user), range(max_movie) # TODO potential - loop through full array, not just nonzero
+        u_indexes, m_indexes = range(max_user), range(max_movie)
         for u_index, m_index in zip(u_indexes, m_indexes):
             r_um_predicted = improved_matrix[u_index, m_index]
             r_um = test_matrix[u_index, m_index]
-            # abs_error = abs(r_um - int(r_um_predicted)) * PROPORTION_OF_PREDICT if not np.isnan(r_um_predicted) else 0
-            # abs_error = abs(r_um - r_um_predicted) if not np.isnan(r_um_predicted) else 0 # TODO
             abs_error = abs(r_um - r_um_predicted) if not np.isnan(r_um_predicted) else 0 # TODO
             histogram_data.append(abs_error)
             rmse_test_improved += abs_error ** 2 if not np.isnan(r_um_predicted) else 0 # TODO
@@ -268,26 +244,17 @@ if run_improved == 'y' and validate == '2':
 
         assert rmse_test_improved == 0.903
 
-        #  ---
-
-        # plt.figure(1)
-        # _ = plt.hist(sim_data, bins=100)
-        # plt.show()
-        # # plt.close()
-
-        # ---
         hist, bins = np.histogram(histogram_data, bins=[0,1,2,3,4,5])
         plt.figure(1)
         plt.bar([0.5, 1.5, 2.5, 3.5, 4.5], hist)
         plt.title("Baseline Absolute Errors")
         plt.xlabel("Absolute error")
         plt.ylabel("Count")
-        plt.savefig("task2-improved_abs_error.png")
+        plt.savefig("IMPROVED-task2.png")
         plt.close()
         error_dist_improved = [x for x in hist if x > 0]
         print(f"{error_dist_improved=}")    
 
-    # for a,b in itertools.product(a, b):
     for NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT_VS_SIM in itertools.product(NEIGHBOURS_NUMBER_LIST, PROPORTION_OF_PREDICT_VS_SIM_LIST):
         PROPORTION_OF_PREDICT, PROPORTION_OF_SIM = PROPORTION_OF_PREDICT_VS_SIM
         print(f"{U_MIN=}; {NEIGHBOURS_NUMBER=}; {PROPORTION_OF_PREDICT_VS_SIM=}; ", end="")
