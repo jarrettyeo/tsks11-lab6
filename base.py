@@ -87,19 +87,19 @@ if rerun_bias == 'y':
         print(f"\n{bias=}")
         
         if validate == 'y':
-            pickle.dump(bias, open("validate-bias.p", "wb"))
+            pickle.dump(bias, open("BASE-validate-bias.p", "wb"))
         elif validate == '2':
-            pickle.dump(bias, open("2-bias.p", "wb"))
+            pickle.dump(bias, open("BASE-task2-bias.p", "wb"))
         else:
-            pickle.dump(bias, open("bias.p", "wb"))
+            pickle.dump(bias, open("BASE-jarye-bias.p", "wb"))
 
 else:
     if validate == 'y':
-        bias = pickle.load(open("validate-bias.p", "rb"))
+        bias = pickle.load(open("BASE-validate-bias.p", "rb"))
     if validate == '2':
-        bias = pickle.load(open("2-bias.p", "rb"))        
+        bias = pickle.load(open("BASE-task2-bias.p", "rb"))        
     else:
-        bias = pickle.load(open("bias.p", "rb"))
+        bias = pickle.load(open("BASE-jarye-bias.p", "rb"))
 
 training_matrix_predicted = np.zeros((max_user, max_movie))
 
@@ -146,10 +146,10 @@ plt.title("Baseline Absolute Errors")
 plt.xlabel("Absolute error")
 plt.ylabel("Count")
 if validate == 'y':
-    plt.savefig("validate-baseline_abs_error.png")
+    plt.savefig("BASE-validate.png")
 elif validate == '2':
-    plt.savefig("2-baseline_abs_error.png")    
+    plt.savefig("BASE-task2.png")    
 else:
-    plt.savefig("baseline_abs_error.png")
+    plt.savefig("BASE-jarye.png")
 error_dist = [x for x in hist if x > 0]
 print(f"{error_dist=}")
