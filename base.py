@@ -13,9 +13,12 @@ import pickle
 ## jarye
 ### rmse_training = 0.892
 ### rmse_test = 0.918
+## task2
+### rmse_training = 0.896
+### rmse_test = 0.910
 
-validate = input("Validate? (y/n) ") or 'n'
-assert validate in ['y','n']
+validate = input("Validate? (y/n/2) ") or 'n'
+assert validate in ['y','n','2']
 
 rerun_bias = input("Rerun bias? (y/n) ") or 'n'
 assert rerun_bias in ['y','n']
@@ -23,6 +26,9 @@ assert rerun_bias in ['y','n']
 if validate == 'y':
     training_filename = "validate_code_netflix/validate_code.training"
     test_filename = "validate_code_netflix/validate_code.test"
+elif validate == '2':
+    training_filename = "training/task---2.training"
+    test_filename = "test/task---2.test"
 else:
     training_filename = "training/jarettye.training"
     test_filename = "test/jarettye.test"
@@ -82,12 +88,16 @@ if rerun_bias == 'y':
         
         if validate == 'y':
             pickle.dump(bias, open("validate-bias.p", "wb"))
+        elif validate == '2':
+            pickle.dump(bias, open("2-bias.p", "wb"))
         else:
             pickle.dump(bias, open("bias.p", "wb"))
 
 else:
     if validate == 'y':
         bias = pickle.load(open("validate-bias.p", "rb"))
+    if validate == '2':
+        bias = pickle.load(open("2-bias.p", "rb"))        
     else:
         bias = pickle.load(open("bias.p", "rb"))
 
@@ -137,6 +147,8 @@ plt.xlabel("Absolute error")
 plt.ylabel("Count")
 if validate == 'y':
     plt.savefig("validate-baseline_abs_error.png")
+elif validate == '2':
+    plt.savefig("2-baseline_abs_error.png")    
 else:
     plt.savefig("baseline_abs_error.png")
 error_dist = [x for x in hist if x > 0]
