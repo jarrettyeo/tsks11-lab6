@@ -5,7 +5,7 @@
 # task2
 ## 2, n, y
 # task2 (improved)
-## 2, n, y, n
+## 2, n, y, n, n
 
 import numpy as np
 from matplotlib import pyplot as plt 
@@ -39,6 +39,9 @@ if validate == '2':
 
     rerun_distance_matrix = input("Rerun distance_matrix? (y/n) ") or 'n'
     assert rerun_distance_matrix in ['y','n']
+
+    rerun_improved_matrix = input("Rerun improved_matrix? (y/n) ") or 'n'
+    assert rerun_improved_matrix in ['y','n']
 
 if validate == 'y':
     training_filename = "validate_code_netflix/validate_code.training"
@@ -201,28 +204,35 @@ if run_improved == 'y' and validate == '2':
         distance_matrix = pickle.load(open("IMPROVED-task2-distance_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
 
     def trial_and_error(NEIGHBOURS_NUMBER, PROPORTION_OF_PREDICT, PROPORTION_OF_SIM):
-        improved_matrix = np.full([max_user, max_movie], np.nan)
-        print('\n')
-        for m_index in range(max_movie):
-            print('Finding similarity for {m_index}/{max_movie}...'.format(
-                m_index=m_index+1, max_movie=max_movie
-            ))
-            neighbours = np.argsort([abs(x) for x in distance_matrix[m_index]])[::-1][:NEIGHBOURS_NUMBER]
-            for u_index in range(max_user):
 
-                neighbourhood_denominator = sum([abs(distance_matrix[m_index, neighbour]) for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
+        if rerun_improved_matrix == 'y':
 
-                if not neighbourhood_denominator == 0:
-                    neighbourhood_numberator = sum([distance_matrix[m_index, neighbour] * difference_matrix[u_index, neighbour] for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
-                    similarity_score = neighbourhood_numberator / neighbourhood_denominator
-                elif u_index < U_MIN * sum(PROPORTION_OF_PREDICT_VS_SIM_LIST[0]):
-                    similarity_score = np.nan
-                else:
-                    similarity_score = 0.0
+            improved_matrix = np.full([max_user, max_movie], np.nan)
+            print('\n')
+            for m_index in range(max_movie):
+                print('Finding similarity for {m_index}/{max_movie}...'.format(
+                    m_index=m_index+1, max_movie=max_movie
+                ))
+                neighbours = np.argsort([abs(x) for x in distance_matrix[m_index]])[::-1][:NEIGHBOURS_NUMBER]
+                for u_index in range(max_user):
 
-                improved_matrix[u_index, m_index] = training_matrix_predicted[u_index, m_index] + similarity_score if u_index > U_MIN else np.nan
+                    neighbourhood_denominator = sum([abs(distance_matrix[m_index, neighbour]) for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
 
-        improved_matrix = np.clip(improved_matrix, 1, 5)
+                    if not neighbourhood_denominator == 0:
+                        neighbourhood_numberator = sum([distance_matrix[m_index, neighbour] * difference_matrix[u_index, neighbour] for neighbour in neighbours if not training_matrix[u_index, neighbour] == 0.0])
+                        similarity_score = neighbourhood_numberator / neighbourhood_denominator
+                    elif u_index < U_MIN * sum(PROPORTION_OF_PREDICT_VS_SIM_LIST[0]):
+                        similarity_score = np.nan
+                    else:
+                        similarity_score = 0.0
+
+                    improved_matrix[u_index, m_index] = training_matrix_predicted[u_index, m_index] + similarity_score if u_index > U_MIN else np.nan
+
+            improved_matrix = np.clip(improved_matrix, 1, 5)
+
+            pickle.dump(improved_matrix, open("IMPROVED-task2-improved_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "wb"))
+        else:
+            improved_matrix = pickle.load(open("IMPROVED-task2-improved_matrix-U_MIN-{U_MIN}.p".format(U_MIN=str(U_MIN)), "rb"))
 
         rmse_test_improved = 0
         histogram_data = []
@@ -245,7 +255,7 @@ if run_improved == 'y' and validate == '2':
         plt.title("Improved Task 2 Absolute Errors")
         plt.xlabel("Absolute Error")
         plt.ylabel("Count")
-        # plt.savefig("IMPROVED-task2.png")
+        plt.savefig("IMPROVED-task2.png")
         plt.close()
         error_dist_improved = [x for x in hist if x > 0]
         print(f"{error_dist_improved=}")    
